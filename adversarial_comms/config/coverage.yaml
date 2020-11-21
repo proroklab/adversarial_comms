@@ -1,0 +1,173 @@
+framework: torch
+env: coverage
+lambda: 0.95
+kl_coeff: 0.5
+kl_target: 0.01
+clip_rewards: True
+clip_param: 0.2
+vf_clip_param: 250.0
+vf_share_layers: False
+vf_loss_coeff: 1.0e-4
+entropy_coeff: 0.01
+train_batch_size: 5000
+rollout_fragment_length: 100
+sgd_minibatch_size: 1000
+num_sgd_iter: 5
+num_workers: 7
+num_envs_per_worker: 64
+lr: 5.0e-4
+gamma: 0.9
+batch_mode: truncate_episodes
+observation_filter: NoFilter
+num_gpus: 0.5
+num_gpus_per_worker: 0.0625
+model:
+    custom_model: adversarial
+    custom_model_config:
+        graph_layers: 1
+        graph_tabs: 2
+        graph_edge_features: 1
+
+        # 24
+        #graph_features: 256
+        #cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
+        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
+        #value_cnn_compression: 128
+        #cnn_compression: 128
+        
+        # 48
+        #graph_features: 512
+        #cnn_filters: [[32, [8, 8], 4], [64, [4, 4], 2], [128, [4, 4], 2]]
+        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
+        #value_cnn_compression: 128
+        #cnn_compression: 512
+        
+        # 48 small
+        #graph_features: 256
+        #cnn_filters:       [[16, [8, 8], 4], [32, [4, 4], 2], [64, [4, 4], 2]]
+        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
+        #value_cnn_compression: 128
+        #cnn_compression: 256
+        
+        # 16
+        graph_features: 128
+        cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [3, 3], 2]]
+        value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
+        value_cnn_compression: 128
+        cnn_compression: 32
+        pre_gnn_mlp: [64, 128, 32]
+        gp_kernel_size: 16
+
+        # 9
+        #graph_features: 256
+        #cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [3, 3], 2]]
+        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
+        #value_cnn_compression: 128
+        #cnn_compression: 32
+    
+        graph_aggregation: sum
+
+        relative: true
+        activation: relu
+        freeze_coop: False
+        freeze_greedy: False
+        freeze_coop_value: False
+        freeze_greedy_value: False
+        cnn_residual: False
+        agent_split: 1
+        greedy_mse_fac: 0.0
+env_config:
+    world_shape: [24, 24]
+    state_size: 16
+    collapse_state: False
+    termination_no_new_coverage: 10
+    max_episode_len: 345 # 24*24*0.6
+    n_agents: [1, 5]
+    disabled_teams_step: [True, False]
+    disabled_teams_comms: [True, False]
+    min_coverable_area_fraction: 0.6
+    map_mode: random
+    reward_annealing: 0.0
+    communication_range: 16.0
+    ensure_connectivity: True
+    reward_type: semi_cooperative #semi_cooperative/cooperative
+    episode_termination: early # early/fixed/default
+    operation_mode: coop_only
+evaluation_num_workers: 1
+evaluation_interval: 1
+evaluation_num_episodes: 10
+evaluation_config:
+    env_config:
+        termination_no_new_coverage: -1
+        max_episode_len: 345 # 24*24*0.6
+        episode_termination: default
+        operation_mode: all
+        ensure_connectivity: False
+_use_trajectory_view_api: False
+logger_config:
+    wandb:
+        project: adv_paper
+        #project: vaegp_0920
+        group: revised_gp
+        api_key_file: "./wandb_api_key_file"
+alternative_config:
+    self_interested:
+        # adversarial case in co-training
+        evaluation_num_workers: 1
+        num_workers: 7
+        num_envs_per_worker: 64
+        rollout_fragment_length: 100
+        num_gpus_per_worker: 0.0625
+        num_gpus: 0.5
+        _use_trajectory_view_api: False
+        env_config:
+            operation_mode: greedy_only
+            disabled_teams_step: [False, False]
+            disabled_teams_comms: [False, False]
+            n_agents: [1, 5]
+        model:
+            custom_model_config:
+                freeze_coop: True
+                freeze_greedy: False
+    adversarial:
+        evaluation_num_workers: 1
+        num_workers: 7
+        num_envs_per_worker: 64
+        rollout_fragment_length: 100
+        num_gpus_per_worker: 0.0625
+        num_gpus: 0.5
+        
+        env_config:
+            operation_mode: adversary_only
+            disabled_teams_step: [False, False]
+            disabled_teams_comms: [False, False]
+            termination_no_new_coverage: -1
+            max_episode_len: 173 # 24*24*0.6
+            episode_termination: default
+        model:
+            custom_model_config:
+                freeze_coop: True
+                freeze_greedy: False
+    re_adapt:
+        env_config:
+            operation_mode: coop_only
+            disabled_teams_step: [False, False]
+            disabled_teams_comms: [False, False]
+        model:
+            custom_model_config:
+                freeze_coop: False
+                freeze_greedy: True
+    adversarial_abundance:
+        # adversarial case in co-training
+        env_config:
+            #map_mode: random_teams_far
+            map_mode: split_half_fixed_block
+            #map_mode: split_half_fixed_block_same_side
+            communication_range: 8.0
+        model:
+            custom_model_config:
+                graph_tabs: 3
+        logger_config:
+            wandb:
+                project: vaegp_0920
+
