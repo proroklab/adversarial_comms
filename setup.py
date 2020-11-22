@@ -31,6 +31,8 @@ setuptools.setup(
         'console_scripts': [
             'train_policy=adversarial_comms.train_policy:start_experiment',
             'continue_policy=adversarial_comms.train_policy:continue_experiment',
+            'evaluate_coop=adversarial_comms.evaluate:trial_nocomm_coop',
+            'evaluate_adv=adversarial_comms.evaluate:trial_nocomm_adv',
         ],
     },
     python_requires='>=3.7',
