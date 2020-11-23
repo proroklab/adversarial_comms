@@ -1,15 +1,15 @@
 import os
 import setuptools
 
-with open("README.md", "r") as fh:
+package_dir = os.path.dirname(os.path.realpath(__file__))
+
+with open(package_dir + "/README.md", "r") as fh:
     long_description = fh.read()
 
-thelibFolder = os.path.dirname(os.path.realpath(__file__))
-requirementPath = thelibFolder + '/requirements.txt'
+requirements_dir = package_dir + '/requirements.txt'
 install_requires = []
-if os.path.isfile(requirementPath):
-    with open(requirementPath) as f:
-        install_requires = f.read().splitlines()
+with open(requirements_dir) as f:
+    install_requires = f.read().splitlines()
 
 setuptools.setup(
     name="adversarial-comms",
