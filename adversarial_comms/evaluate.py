@@ -18,66 +18,7 @@ from .environments.coverage import CoverageEnv
 from .environments.path_planning import PathPlanningEnv
 from .models.adversarial import AdversarialModel
 from .trainers.multiagent_ppo import MultiPPOTrainer
-
-def heuristic(env, state):
-    state_obstacles, state_coverage = (state['map'][...,i] for i in range(2))
-    half_state_shape = (np.array(state_obstacles.shape)/2).astype(int)
-    actions_deltas = {
-        world.Action.MOVE_RIGHT:  [ 0,  1],
-        world.Action.MOVE_LEFT:   [ 0, -1],
-        world.Action.MOVE_UP:     [-1,  0],
-        world.Action.MOVE_DOWN:   [ 1,  0],
-        #world.Action.NOP:         [ 0,  0]
-    }
-
-    options_free = []
-    options_uncovered = []
-    for a, dp in actions_deltas.items():
-        p = half_state_shape + dp
-        if state_obstacles[p[world.Y], p[world.X]] > 0:
-            continue
-        options_free.append(a)
-
-        if state_coverage[p[world.Y], p[world.X]] > 0:
-            continue
-        options_uncovered.append(a)
-
-    if len(options_uncovered) > 0:
-        return random.choice(options_uncovered)
-    elif len(options_free) > 0:
-        return random.choice(options_free)
-    return world.Action.NOP
-
-def run_random(checkpoint_path, trial, ep_len, cfg_update, comm_index):
-    try:
-        t0 = time.time()
-        with open(checkpoint_path + '/../params.json') as json_file:
-            cfg = json.load(json_file)
-            if 'greedy' in cfg:
-                cfg = cfg['greedy']
-
-        cfg = update_dict(cfg, cfg_update)
-        if 'evaluation_config' in cfg:
-            cfg['env_config'] = update_dict(cfg['env_config'], cfg['evaluation_config']['env_config'])
-        envs = {'coverage': CoverageEnv, 'path_planning': PathPlanningEnv}
-        env = envs[cfg['env']](cfg['env_config'])
-        env.seed(trial) # same environments for all distances
-        obs = env.reset()
-        #states = trainer.get_policy().get_initial_state()
-
-        results = []
-
-        for i in range(ep_len):
-            actions = tuple([heuristic(env, state) for state in obs['agents']])
-            obs, reward, done, info = env.step(actions)
-            results.append(list(info['rewards'].values()))
-        print("Done", time.time() - t0)
-    except Exception as e:
-        print(e, traceback.format_exc())
-        raise
-    results = np.array(results)
-    print(results)
-    return checkpoint_path, trial, comm_index, results
+from .trainers.random_heuristic import RandomHeuristicTrainer
 
 def update_dict(d, u):
     for k, v in u.items():
@@ -87,32 +28,36 @@ def update_dict(d, u):
             d[k] = v
     return d
 
-def run_trial(checkpoint_path, trial, cfg_update):
+def run_trial(trainer_class=MultiPPOTrainer, checkpoint_path=None, trial=0, cfg_update={}):
     try:
         t0 = time.time()
-        with open(checkpoint_path + '/../params.json') as json_file:
-            cfg = json.load(json_file)
-            if 'greedy' in cfg:
-                cfg = cfg['greedy']
+        cfg = {'env_config': {}, 'model': {}}
+        if checkpoint_path is not None:
+            # We might want to run policies that are not loaded from a checkpoint
+            # (e.g. the random policy) and therefore need this to be optional
+            with open(Path(checkpoint_path).parent/"params.json") as json_file:
+                cfg = json.load(json_file)
 
-        checkpoint_file = checkpoint_path + '/checkpoint-' + os.path.basename(checkpoint_path).split('_')[-1]
+        if 'evaluation_config' in cfg:
+            # overwrite the environment config with evaluation one if it exists
+            cfg = update_dict(cfg, cfg['evaluation_config'])
 
-        env_config = cfg['env_config'] if 'evaluation_config' not in cfg else update_dict(cfg['env_config'], cfg['evaluation_config']['env_config'])
+        cfg = update_dict(cfg, cfg_update)
 
-        trainer_cfg = update_dict({
-            "framework": "torch",
-            "seed": trial,
-            "num_workers": 0,
-            "env_config": cfg['env_config'],
-            "model": cfg['model']
-        }, cfg_update)
-
-        trainer = MultiPPOTrainer(
+        trainer = trainer_class(
             env=cfg['env'],
             logger_creator=lambda config: NoopLogger(config, ""),
-            config=trainer_cfg
+            config={
+                "framework": "torch",
+                "seed": trial,
+                "num_workers": 0,
+                "env_config": cfg['env_config'],
+                "model": cfg['model']
+            }
         )
-        trainer.restore(checkpoint_file)
+        if checkpoint_path is not None:
+            checkpoint_file = Path(checkpoint_path)/('checkpoint-'+os.path.basename(checkpoint_path).split('_')[-1])
+            trainer.restore(str(checkpoint_file))
 
         envs = {'coverage': CoverageEnv, 'path_planning': PathPlanningEnv}
         env = envs[cfg['env']](cfg['env_config'])
@@ -120,13 +65,16 @@ def run_trial(checkpoint_path, trial, cfg_update):
         obs = env.reset()
 
         results = []
-        for i in range(env_config['max_episode_len']):
+        for i in range(cfg['env_config']['max_episode_len']):
             actions = trainer.compute_action(obs)
             obs, reward, done, info = env.step(actions)
-            results.append({
-                'trial': trial,
-                'rewards': list(info['rewards'].values())
-            })
+            for j, reward in enumerate(list(info['rewards'].values())):
+                results.append({
+                    'step': i,
+                    'agent': j,
+                    'trial': trial,
+                    'reward': reward
+                })
 
         print("Done", time.time() - t0)
     except Exception as e:
@@ -141,9 +89,9 @@ def path_to_hash(path):
     path_hash = path_split[-2].split('_')[-2]
     return path_hash + '-' + checkpoint_number_string
 
-def serve_config(checkpoint_path, trials, cfg_change={}, run_function=run_trial):
+def serve_config(checkpoint_path, trials, cfg_change={}, trainer=MultiPPOTrainer):
     with Pool() as p:
-        results = pd.concat(p.starmap(run_function, [(checkpoint_path, t, cfg_change) for t in range(trials)]))
+        results = pd.concat(p.starmap(run_trial, [(trainer, checkpoint_path, t, cfg_change) for t in range(trials)]))
     return results
 
 def initialize():
@@ -152,7 +100,7 @@ def initialize():
     register_env("path_planning", lambda config: PathPlanningEnv(config))
     ModelCatalog.register_custom_model("adversarial", AdversarialModel)
 
-def trial_nocomm(env_config_func, prefix):
+def eval_nocomm(env_config_func, prefix):
     parser = argparse.ArgumentParser()
     parser.add_argument("checkpoint")
     parser.add_argument("out_path")
@@ -163,27 +111,61 @@ def trial_nocomm(env_config_func, prefix):
     results = []
     for comm in [False, True]:
         cfg_change={'env_config': env_config_func(comm)}
-        df = serve_config(args.checkpoint, args.trials, cfg_change=cfg_change)
+        df = serve_config(args.checkpoint, args.trials, cfg_change=cfg_change, trainer=MultiPPOTrainer)
         df['comm'] = comm
         results.append(df)
 
-    filename = prefix + "-" + path_to_hash(args.checkpoint) + ".pkl"
-    pd.concat(results).to_pickle(Path(args.out_path)/filename)
+    with open(Path(args.checkpoint).parent/"params.json") as json_file:
+        cfg = json.load(json_file)
+        if 'evaluation_config' in cfg:
+            update_dict(cfg, cfg['evaluation_config'])
 
-def trial_nocomm_coop():
+    df = pd.concat(results)
+    df.attrs = cfg
+    filename = prefix + "-" + path_to_hash(args.checkpoint) + ".pkl"
+    df.to_pickle(Path(args.out_path)/filename)
+
+def eval_nocomm_coop():
     # Cooperative agents can communicate or not (without comm interference from adversarial agent)
-    trial_nocomm(lambda comm: {
+    eval_nocomm(lambda comm: {
         'disabled_teams_comms': [True, not comm],
         'disabled_teams_step': [True, False]
     }, "eval_coop")
 
-def trial_nocomm_adv():
+def eval_nocomm_adv():
     # all cooperative agents can still communicate, but adversarial communication is switched
-    trial_nocomm(lambda comm: {
+    eval_nocomm(lambda comm: {
         'disabled_teams_comms': [not comm, False], # en/disable comms for adv and always enabled for coop
         'disabled_teams_step': [False, False] # both teams operating
     }, "eval_adv")
 
-if __name__ == "__main__":
-    trial_coop_nocomm()
+def eval_random():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("out_path")
+    parser.add_argument("-t", "--trials", type=int, default=100)
+    args = parser.parse_args()
+
+    initialize()
+    config = {
+        "env": "coverage",
+        "env_config": {
+            "ensure_connectivity": False,
+            "episode_termination": "default",
+            "map_mode": "random",
+            "max_episode_len": 345,
+            "min_coverable_area_fraction": 0.6,
+            "n_agents": [1, 5],
+            "disabled_teams_comms": [True, True],
+            "disabled_teams_step": [True, False],
+            "one_agent_per_cell": False,
+            "operation_mode": "all",
+            "reward_type": "semi_cooperative",
+            "state_size": 16,
+            "termination_no_new_coverage": -1,
+            "world_shape": [24, 24]
+        }
+    }
+    results = serve_config(None, args.trials, cfg_change=config, trainer=RandomHeuristicTrainer)
+    results.attrs = config
+    results.to_pickle(Path(args.out_path)/"eval_rand.pkl")
 
