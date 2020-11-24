@@ -29,7 +29,7 @@ def update_dict(d, u):
             d[k] = v
     return d
 
-def run_trial(trainer_class=MultiPPOTrainer, checkpoint_path=None, trial=0, cfg_update={}):
+def run_trial(trainer_class=MultiPPOTrainer, checkpoint_path=None, trial=0, cfg_update={}, render=False):
     try:
         t0 = time.time()
         cfg = {'env_config': {}, 'model': {}}
@@ -69,6 +69,8 @@ def run_trial(trainer_class=MultiPPOTrainer, checkpoint_path=None, trial=0, cfg_
         for i in range(cfg['env_config']['max_episode_len']):
             actions = trainer.compute_action(obs)
             obs, reward, done, info = env.step(actions)
+            if render:
+                env.render()
             for j, reward in enumerate(list(info['rewards'].values())):
                 results.append({
                     'step': i,
@@ -179,4 +181,13 @@ def plot():
         fig_overview.savefig(args.out_file, dpi=300)
 
     plt.show()
+
+def serve():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("checkpoint")
+    parser.add_argument("-s", "--seed", type=int, default=0)
+    args = parser.parse_args()
+
+    initialize()
+    run_trial(checkpoint_path=args.checkpoint, trial=args.seed, render=True)
 
