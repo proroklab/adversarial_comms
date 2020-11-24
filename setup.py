@@ -34,6 +34,7 @@ setuptools.setup(
             'evaluate_coop=adversarial_comms.evaluate:eval_nocomm_coop',
             'evaluate_adv=adversarial_comms.evaluate:eval_nocomm_adv',
             'evaluate_random=adversarial_comms.evaluate:eval_random',
+            'evaluate_plot=adversarial_comms.evaluate:plot',
         ],
     },
     python_requires='>=3.7',

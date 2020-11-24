@@ -1,6 +1,7 @@
 import argparse
 import collections.abc
 import json
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
@@ -139,33 +140,43 @@ def eval_nocomm_adv():
         'disabled_teams_step': [False, False] # both teams operating
     }, "eval_adv")
 
-def eval_random():
+def plot_agent(ax, df, color, step_aggregation='sum', linestyle='-'):
+    world_shape = df.attrs['env_config']['world_shape']
+    max_cov = world_shape[0]*world_shape[1]*df.attrs['env_config']['min_coverable_area_fraction']
+    d = (df.sort_values(['trial', 'step']).groupby(['trial', 'step'])['reward'].apply(step_aggregation, 'step').groupby('trial').cumsum()/max_cov*100).groupby('step')
+    ax.plot(d.mean(), color=color, ls=linestyle)
+    ax.fill_between(np.arange(len(d.mean())), np.clip(d.mean()-d.std(), 0, None), d.mean()+d.std(), alpha=0.1, color=color)
+
+def plot():
     parser = argparse.ArgumentParser()
-    parser.add_argument("out_path")
-    parser.add_argument("-t", "--trials", type=int, default=100)
+    parser.add_argument("data")
+    parser.add_argument("-o", "--out_file", default=None)
     args = parser.parse_args()
 
-    initialize()
-    config = {
-        "env": "coverage",
-        "env_config": {
-            "ensure_connectivity": False,
-            "episode_termination": "default",
-            "map_mode": "random",
-            "max_episode_len": 345,
-            "min_coverable_area_fraction": 0.6,
-            "n_agents": [1, 5],
-            "disabled_teams_comms": [True, True],
-            "disabled_teams_step": [True, False],
-            "one_agent_per_cell": False,
-            "operation_mode": "all",
-            "reward_type": "semi_cooperative",
-            "state_size": 16,
-            "termination_no_new_coverage": -1,
-            "world_shape": [24, 24]
-        }
-    }
-    results = serve_config(None, args.trials, cfg_change=config, trainer=RandomHeuristicTrainer)
-    results.attrs = config
-    results.to_pickle(Path(args.out_path)/"eval_rand.pkl")
+    fig_overview = plt.figure(figsize=[4, 4])
+    ax = fig_overview.subplots(1, 1)
+
+    df = pd.read_pickle(args.data)
+    if Path(args.data).name.startswith('eval_adv'):
+        plot_agent(ax, df[(df['comm'] == False) & (df['agent'] == 0)], 'r', step_aggregation='mean', linestyle=':')
+        plot_agent(ax, df[(df['comm'] == False) & (df['agent'] > 0)], 'b', step_aggregation='mean', linestyle=':')
+        plot_agent(ax, df[(df['comm'] == True) & (df['agent'] == 0)], 'r', step_aggregation='mean', linestyle='-')
+        plot_agent(ax, df[(df['comm'] == True) & (df['agent'] > 0)], 'b', step_aggregation='mean', linestyle='-')
+    elif Path(args.data).name.startswith('eval_coop'):
+        plot_agent(ax, df[(df['comm'] == False) & (df['agent'] > 0)], 'b', step_aggregation='sum', linestyle=':')
+        plot_agent(ax, df[(df['comm'] == True) & (df['agent'] > 0)], 'b', step_aggregation='sum', linestyle='-')
+    elif Path(args.data).name.startswith('eval_rand'):
+        plot_agent(ax, df[df['agent'] > 0], 'b', step_aggregation='sum', linestyle='-')
+
+    ax.set_ylabel("Coverage %")
+    ax.set_ylim(0, 100)
+    ax.set_xlabel("Episode time steps")
+    ax.margins(x=0, y=0)
+    ax.grid()
+
+    fig_overview.tight_layout()
+    if args.out_file is not None:
+        fig_overview.savefig(args.out_file, dpi=300)
+
+    plt.show()
 
