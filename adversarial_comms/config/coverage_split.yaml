@@ -81,7 +81,7 @@ alternative_config:
             disabled_teams_step: [False, False]
             disabled_teams_comms: [False, False]
         model:
-            custom_options:
+            custom_model_config:
                 freeze_coop: True
                 freeze_greedy: False
     re_adapt:
@@ -90,6 +90,6 @@ alternative_config:
             disabled_teams_step: [False, False]
             disabled_teams_comms: [False, False]
         model:
-            custom_options:
+            custom_model_config:
                 freeze_coop: False
                 freeze_greedy: True
