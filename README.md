@@ -5,6 +5,12 @@ Code accompanying the paper
 > (University of Cambridge)\
 > _arXiv: 2008.02616_.
 
+The five minute video presentation for CoRL 2020:
+
+[![Video preview](https://img.youtube.com/vi/SUDkRaj4FAI/0.jpg)](https://www.youtube.com/watch?v=SUDkRaj4FAI)
+
+Supplementary video material:
+
 [![Video preview](https://img.youtube.com/vi/o1Nq9XoSU6U/0.jpg)](https://www.youtube.com/watch?v=o1Nq9XoSU6U)
 
 ## Installation
