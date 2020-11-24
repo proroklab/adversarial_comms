@@ -49,7 +49,20 @@ continue_policy [adversarial checkpoint path] -t 80 -e path_planning -o re_adapt
 ```
 
 ## Evaluation
+We provide three methods for evaluation:
 
+1) `evaluate_coop`: Evaluate cooperative only performance while disabling self-interested agents with and without communication among cooperative agents.
+2) `evaluate_adv`: Evaluate cooperative and self-interested agents with and without communication between cooperative and self-interested agents (cooperative agents can always communicate to each other).
+3) `evaluate_random`: Run a random policy that visits random neighboring (preferably uncovered) cells.
+
+The evaluation is run as
+```
+evaluate_{coop, adv} [checkpoint path] [result path] --trials 100
+evaluate_random [result path] --trials 100
+```
+for 100 evaluation runs with different seeds. The resulting file is a Pandas dataframe containing the rewards for all agents at every time step. It can be processed and visualized by running `evaluate_plot [pickled data path]`.
+
+Additionally, a checkpoint can be rolled out and rendered for a randomly generated environment with `evaluate_serve [checkpoint_path] --seed 0`. 
 
 ## Citation
 If you use any part of this code in your research, please cite our paper:
