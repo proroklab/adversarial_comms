@@ -13,46 +13,28 @@ train_batch_size: 5000
 rollout_fragment_length: 100
 sgd_minibatch_size: 1000
 num_sgd_iter: 5
-num_workers: 16
-num_envs_per_worker: 8
+num_workers: 7
+num_envs_per_worker: 64
 lr: 4.0e-4
 gamma: 0.99
 batch_mode: complete_episodes
 observation_filter: NoFilter
-num_gpus: 1
+num_gpus: 0.5
+num_gpus_per_worker: 0.0625
 model:
     custom_model: adversarial
     custom_model_config:
         graph_layers: 1
-        graph_tabs: 3
+        graph_tabs: 2
         graph_edge_features: 1
-
-        # state 24
         graph_features: 128
-        cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
-        value_cnn_filters: [[32, [4, 4], 2], [64, [4, 4], 2]]
-        value_cnn_compression: 256
-        cnn_compression: 128
-        
-        # 7x7
-        #graph_features: 32
-        #cnn_filters: [[16, [4, 4], 2], [32, [4, 4], 2]]
-        #value_cnn_filters: [[16, [4, 4], 2], [32, [4, 4], 2]]
-        #value_cnn_compression: 128
-        #cnn_compression: 32
-        
-        # state 48
-        #graph_features: 512
-        #cnn_filters: [[32, [8, 8], 4], [64, [4, 4], 2], [128, [4, 4], 2]]
-        #value_cnn_filters: [[32, [8, 8], 2], [64, [4, 4], 2], [128, [4, 4], 2]]
-        #value_cnn_compression: 512
-        #cnn_compression: 512
-        
-        relative: true
-        #lstm_cell_size: 64
-        #lstm_layers: 1
+        cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [3, 3], 2]]
+        value_cnn_filters: [[16, [4, 4], 2], [32, [4, 4], 2]]
+        value_cnn_compression: 128
+        cnn_compression: 32
+        gp_kernel_size: 16
+        graph_aggregation: sum
         activation: relu
-        #position: none
         freeze_coop: False
         freeze_greedy: False
         freeze_coop_value: False
@@ -61,7 +43,7 @@ model:
         agent_split: 1
 env_config:
     world_shape: [12, 12]
-    state_size: 24
+    state_size: 16
     max_episode_len: 50
     n_agents: [1, 15]
     disabled_teams_step: [True, False]
@@ -87,7 +69,7 @@ alternative_config:
             disabled_teams_step: [False, False]
             disabled_teams_comms: [False, False]
         model:
-            custom_options:
+            custom_model_config:
                 freeze_coop: True
                 freeze_greedy: False
         evaluation_config:
@@ -99,7 +81,7 @@ alternative_config:
             disabled_teams_step: [False, False]
             disabled_teams_comms: [False, False]
         model:
-            custom_options:
+            custom_model_config:
                 freeze_coop: False
                 freeze_greedy: True
         evaluation_config:

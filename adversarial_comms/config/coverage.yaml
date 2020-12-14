@@ -14,7 +14,7 @@ rollout_fragment_length: 100
 sgd_minibatch_size: 1000
 num_sgd_iter: 5
 num_workers: 7
-num_envs_per_worker: 64
+num_envs_per_worker: 16
 lr: 5.0e-4
 gamma: 0.9
 batch_mode: truncate_episodes
@@ -27,29 +27,6 @@ model:
         graph_layers: 1
         graph_tabs: 2
         graph_edge_features: 1
-
-        # 24
-        #graph_features: 256
-        #cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
-        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
-        #value_cnn_compression: 128
-        #cnn_compression: 128
-        
-        # 48
-        #graph_features: 512
-        #cnn_filters: [[32, [8, 8], 4], [64, [4, 4], 2], [128, [4, 4], 2]]
-        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
-        #value_cnn_compression: 128
-        #cnn_compression: 512
-        
-        # 48 small
-        #graph_features: 256
-        #cnn_filters:       [[16, [8, 8], 4], [32, [4, 4], 2], [64, [4, 4], 2]]
-        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
-        #value_cnn_compression: 128
-        #cnn_compression: 256
-        
-        # 16
         graph_features: 128
         cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [3, 3], 2]]
         value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
@@ -57,16 +34,7 @@ model:
         cnn_compression: 32
         pre_gnn_mlp: [64, 128, 32]
         gp_kernel_size: 16
-
-        # 9
-        #graph_features: 256
-        #cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [3, 3], 2]]
-        #value_cnn_filters: [[8, [4, 4], 2], [16, [4, 4], 2], [32, [4, 4], 2]]
-        #value_cnn_compression: 128
-        #cnn_compression: 32
-    
         graph_aggregation: sum
-
         relative: true
         activation: relu
         freeze_coop: False
