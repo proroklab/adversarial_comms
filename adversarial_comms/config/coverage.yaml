@@ -23,6 +23,7 @@ num_gpus: 0.5
 num_gpus_per_worker: 0.0625
 model:
     custom_model: adversarial
+    custom_action_dist: hom_multi_action
     custom_model_config:
         graph_layers: 1
         graph_tabs: 2

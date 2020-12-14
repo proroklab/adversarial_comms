@@ -244,7 +244,7 @@ class CoverageEnv(gym.Env, EzPickle):
             'gso': spaces.Box(-np.inf, np.inf, shape=(n_all_agents, n_all_agents)),
             'state': spaces.Box(low=0, high=2, shape=self.cfg['world_shape']+[2+len(self.cfg['n_agents'])]),
         })
-        self.action_space = spaces.MultiDiscrete([5]*sum(self.cfg['n_agents']))
+        self.action_space = spaces.Tuple((spaces.Discrete(5),)*sum(self.cfg['n_agents']))
 
         self.map = WorldMap(self.world_random_state, self.cfg['world_shape'], self.cfg['min_coverable_area_fraction'])
         self.teams = {}

@@ -20,6 +20,7 @@ from .environments.coverage import CoverageEnv
 from .environments.path_planning import PathPlanningEnv
 from .models.adversarial import AdversarialModel
 from .trainers.multiagent_ppo import MultiPPOTrainer
+from .trainers.hom_multi_action_dist import TorchHomogeneousMultiActionDistribution
 
 torch, _ = try_import_torch()
 
@@ -79,6 +80,7 @@ def initialize():
     register_env("coverage", lambda config: CoverageEnv(config))
     register_env("path_planning", lambda config: PathPlanningEnv(config))
     ModelCatalog.register_custom_model("adversarial", AdversarialModel)
+    ModelCatalog.register_custom_action_dist("hom_multi_action", TorchHomogeneousMultiActionDistribution)
     
 def start_experiment():
     parser = argparse.ArgumentParser()

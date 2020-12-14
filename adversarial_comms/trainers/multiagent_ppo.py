@@ -8,13 +8,14 @@ from typing import Dict, List, Optional, Type, Union
 
 import ray
 from ray.rllib.agents.a3c.a3c_torch_policy import apply_grad_clipping
+from ray.rllib.agents.ppo.ppo_tf_policy import setup_config
 from ray.rllib.agents.trainer_template import build_trainer
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.evaluation.postprocessing import compute_advantages, \
     Postprocessing
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.modelv2 import ModelV2
-from ray.rllib.models.torch.torch_action_dist import TorchDistributionWrapper, TorchMultiCategorical, TorchCategorical
+from ray.rllib.models.torch.torch_action_dist import TorchDistributionWrapper
 from ray.rllib.policy.policy import Policy
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.torch_policy import EntropyCoeffSchedule, \
@@ -31,8 +32,6 @@ torch, nn = try_import_torch()
 
 logger = logging.getLogger(__name__)
 
-
-import numpy as np
 
 def postprocess_ppo_gae(
         policy: Policy,
@@ -92,7 +91,6 @@ def ppo_surrogate_loss(
             of loss tensors.
     """
     logits, state = model.from_batch(train_batch, is_training=True)
-    logits = logits.view(-1, model.n_agents, 5)
 
     # RNN case: Mask away 0-padded chunks at end of time axis.
     if state:
@@ -114,14 +112,14 @@ def ppo_surrogate_loss(
 
     loss_data = []
 
-    for i in range(len(train_batch[SampleBatch.ACTIONS][0])):
-        curr_action_dist = TorchCategorical(logits[:,i], model)
-        logp_ratio = torch.exp(
-            curr_action_dist.logp(train_batch[SampleBatch.ACTIONS][..., i]) -
-            train_batch[SampleBatch.ACTION_LOGP][..., i])
+    dst = dist_class(logits, model)
+    logps = dst.logp(train_batch[SampleBatch.ACTIONS])
+    entropies = dst.entropy()
 
-        curr_entropy = curr_action_dist.entropy()
-        mean_entropy = reduce_mean_valid(curr_entropy)
+    for i in range(len(train_batch[SampleBatch.ACTIONS][0])):
+        logp_ratio = torch.exp(logps[:, i] - train_batch[SampleBatch.ACTION_LOGP][..., i])
+
+        mean_entropy = reduce_mean_valid(entropies[:, i])
 
         surrogate_loss = torch.min(
             train_batch[Postprocessing.ADVANTAGES][..., i] * logp_ratio,
@@ -144,7 +142,7 @@ def ppo_surrogate_loss(
         total_loss = reduce_mean_valid(
             -surrogate_loss
             +policy.config["vf_loss_coeff"] * vf_loss
-            -policy.entropy_coeff * curr_entropy)
+            -policy.entropy_coeff * entropies[:, i])
 
         # Store stats in policy for stats_fn.
         loss_data.append({
@@ -256,35 +254,6 @@ class ValueNetworkMixin:
             return self.model.value_function()[0]
 
         self._value = value
-
-def setup_config(policy: Policy, obs_space: gym.spaces.Space,
-                 action_space: gym.spaces.Space,
-                 config: TrainerConfigDict) -> None:
-    """Executed before Policy is "initialized" (at beginning of constructor).
-    Args:
-        policy (Policy): The Policy object.
-        obs_space (gym.spaces.Space): The Policy's observation space.
-        action_space (gym.spaces.Space): The Policy's action space.
-        config (TrainerConfigDict): The Policy's config.
-    """
-
-    class ExtendedTorchMultiCategorical(TorchMultiCategorical):
-        @override(TorchMultiCategorical)
-        def __init__(self, inputs, model):
-            super().__init__(inputs, model, [action_space.nvec[0]]*int(inputs.shape[-1]/action_space.nvec[0]))
-
-        @override(TorchMultiCategorical)
-        def logp(self, actions):
-            if isinstance(actions, torch.Tensor):
-                actions = torch.unbind(actions, dim=1)
-            return torch.stack(
-                [cat.log_prob(act) for cat, act in zip(self.cats, actions)], axis=-1)
-
-    ModelCatalog.register_custom_action_dist("ext_multi_categorical", ExtendedTorchMultiCategorical)
-
-    # auto set the model option for layer sharing
-    config["model"]["vf_share_layers"] = config["vf_share_layers"]
-    config["model"]["custom_action_dist"] = "ext_multi_categorical"
 
 def setup_mixins(policy: Policy, obs_space: gym.spaces.Space,
                  action_space: gym.spaces.Space,

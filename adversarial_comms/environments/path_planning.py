@@ -184,7 +184,7 @@ class PathPlanningEnv(gym.Env, EzPickle):
             'gso': spaces.Box(-np.inf, np.inf, shape=(n_all_agents, n_all_agents)),
             'state': spaces.Box(low=0, high=3, shape=self.cfg['world_shape']+[sum(self.cfg['n_agents'])]),
         })
-        self.action_space = spaces.MultiDiscrete([5]*sum(self.cfg['n_agents']))
+        self.action_space = spaces.Tuple((spaces.Discrete(5),)*sum(self.cfg['n_agents']))
 
         self.map = WorldMap(self.cfg['world_shape'], self.cfg['world_mode'])
 
