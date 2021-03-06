@@ -13,7 +13,7 @@ with open(requirements_dir) as f:
 
 setuptools.setup(
     name="adversarial-comms",
-    version="1.0.0",
+    version="1.0.1",
     author="Jan Blumenkamp",
     author_email="jan.blumenkamp@gmx.de",
     description="Package accompanying the paper 'The Emergence of Adversarial Communication in Multi-Agent Reinforcement Learning'",
@@ -38,5 +38,5 @@ setuptools.setup(
             'evaluate_serve=adversarial_comms.evaluate:serve'
         ],
     },
-    python_requires='>=3.7',
+    python_requires='>=3.7, <3.8',
 )
