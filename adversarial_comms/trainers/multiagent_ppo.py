@@ -63,7 +63,7 @@ def postprocess_ppo_gae(
             last_r = policy._value(sample_batch_agent[SampleBatch.NEXT_OBS][-1],
                                    sample_batch_agent[SampleBatch.ACTIONS][-1],
                                    sample_batch_agent[SampleBatch.REWARDS][-1],
-                                   *next_state)[int(i)]
+                                   *next_state)[int(i)].cpu()
         batches.append(compute_advantages(
             sample_batch_agent,
             last_r,
