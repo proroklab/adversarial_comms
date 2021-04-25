@@ -14,13 +14,12 @@ rollout_fragment_length: 100
 sgd_minibatch_size: 1000
 num_sgd_iter: 5
 num_workers: 7
-num_envs_per_worker: 64
+num_envs_per_worker: 16
 lr: 4.0e-4
 gamma: 0.99
 batch_mode: complete_episodes
 observation_filter: NoFilter
-num_gpus: 0.5
-num_gpus_per_worker: 0.0625
+num_gpus: 1.0
 model:
     custom_model: adversarial
     custom_action_dist: hom_multi_action
@@ -62,7 +61,6 @@ evaluation_num_episodes: 10
 evaluation_config:
     env_config:
         reward_type: local
-_use_trajectory_view_api: False
 alternative_config:
     self_interested:
         env_config:

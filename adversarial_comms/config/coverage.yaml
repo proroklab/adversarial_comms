@@ -72,7 +72,6 @@ evaluation_config:
         episode_termination: default
         operation_mode: all
         ensure_connectivity: False
-_use_trajectory_view_api: False
 logger_config:
     wandb:
         project: adv_paper
@@ -88,7 +87,6 @@ alternative_config:
         rollout_fragment_length: 100
         num_gpus_per_worker: 0.0625
         num_gpus: 0.5
-        _use_trajectory_view_api: False
         env_config:
             operation_mode: greedy_only
             disabled_teams_step: [False, False]

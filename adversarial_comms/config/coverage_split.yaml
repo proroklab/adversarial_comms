@@ -74,7 +74,6 @@ evaluation_config:
         episode_termination: default
         operation_mode: all
         ensure_connectivity: False
-_use_trajectory_view_api: False
 alternative_config:
     self_interested:
         env_config:
